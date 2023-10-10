@@ -1,12 +1,33 @@
-#import LoRaDuplexCallback
-#import LoRaPingPong
-#import LoRaSender
-from examples import LoRaSender
-from examples import LoRaReceiver
-
-from config import *
+from time import sleep
 from machine import Pin, SPI
 from sx127x import SX127x
+
+
+# ES32 TTGO v1.0
+device_config = {
+    'miso':19,
+    'mosi':27,
+    'ss':18,
+    'sck':5,
+    'dio_0':26,
+    'reset':14,
+    'led':2,
+}
+
+
+lora_parameters = {
+    'frequency': 868E6,
+    'tx_power_level': 2,
+    'signal_bandwidth': 125E3,
+    'spreading_factor': 8,
+    'coding_rate': 5,
+    'preamble_length': 8,
+    'implicit_header': False,
+    'sync_word': 0x12,
+    'enable_CRC': False,
+    'invert_IQ': False,
+}
+
 
 device_spi = SPI(baudrate = 10000000, 
         polarity = 0, phase = 0, bits = 8, firstbit = SPI.MSB,
@@ -16,11 +37,27 @@ device_spi = SPI(baudrate = 10000000,
 
 lora = SX127x(device_spi, pins=device_config, parameters=lora_parameters)
 
-#example = 'sender'
-example = 'receiver'
+example = 'receiver'  # 'sender' 'receiver'
 
 if __name__ == '__main__':
     if example == 'sender':
-        LoRaSender.send(lora)
+        counter = 0
+        print('LoRa Sender')
+
+        while True:
+            payload = 'Hello ({0})'.format(counter)
+            print("Sending packet: \n{} ...".format(payload), end='')
+            lora.println(payload)
+            print("done\n")
+
+            counter += 1
+            sleep(5)
     if example == 'receiver':
-        LoRaReceiver.receive(lora)
+        print('LoRa Receiver')
+
+        while True:
+            if lora.received_packet():
+                lora.blink_led()
+                print('something here')
+                payload = lora.read_payload()
+                print(payload)
