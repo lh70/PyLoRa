@@ -1,5 +1,5 @@
 from time import sleep
-from machine import Pin, SPI
+from machine import Pin, SoftSPI
 from sx127x import SX127x
 
 
@@ -29,8 +29,8 @@ lora_parameters = {
 }
 
 
-device_spi = SPI(baudrate = 10000000, 
-        polarity = 0, phase = 0, bits = 8, firstbit = SPI.MSB,
+device_spi = SoftSPI(baudrate = 10000000,
+        polarity = 0, phase = 0, bits = 8, firstbit = SoftSPI.MSB,
         sck = Pin(device_config['sck'], Pin.OUT, Pin.PULL_DOWN),
         mosi = Pin(device_config['mosi'], Pin.OUT, Pin.PULL_UP),
         miso = Pin(device_config['miso'], Pin.IN, Pin.PULL_UP))
@@ -46,8 +46,8 @@ if __name__ == '__main__':
 
         while True:
             payload = 'Hello ({0})'.format(counter)
-            print("Sending packet: \n{} ...".format(payload), end='')
-            lora.println(payload)
+            print("sending packet: \n{} ...".format(payload), end='')
+            lora.send(payload.encode())
             print("done\n")
 
             counter += 1
@@ -56,8 +56,7 @@ if __name__ == '__main__':
         print('LoRa Receiver')
 
         while True:
-            if lora.received_packet():
+            payload = lora.try_receive()
+            if payload:
                 lora.blink_led()
-                print('something here')
-                payload = lora.read_payload()
-                print(payload)
+                print('received packet: \n{}\n'.format(payload.decode()))

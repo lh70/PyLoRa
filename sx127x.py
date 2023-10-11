@@ -1,4 +1,6 @@
 from time import sleep
+from typing import Optional
+
 from machine import SPI, Pin
 import gc
 
@@ -17,10 +19,9 @@ REG_FIFO_ADDR_PTR = 0x0d
 
 REG_FIFO_TX_BASE_ADDR = 0x0e
 FifoTxBaseAddr = 0x00
-# FifoTxBaseAddr = 0x80
+FifoRxBaseAddr = 0x00
 
 REG_FIFO_RX_BASE_ADDR = 0x0f
-FifoRxBaseAddr = 0x00
 REG_FIFO_RX_CURRENT_ADDR = 0x10
 REG_IRQ_FLAGS_MASK = 0x11
 REG_IRQ_FLAGS = 0x12
@@ -91,10 +92,7 @@ class SX127x:
             'invert_IQ': False,
             }
 
-    def __init__(self,
-                 spi,
-                 pins,
-                 parameters=default_parameters):
+    def __init__(self, spi, pins, parameters=default_parameters):
         
         self._spi = spi
         self._pins = pins
@@ -110,18 +108,19 @@ class SX127x:
             self._led_status = Pin(self._pins["led"], Pin.OUT)
 
         # check hardware version
-        init_try = True
         re_try = 0
-        while init_try and re_try < 5:
+        version = 0
+        while re_try < 5:
             version = self.read_register(REG_VERSION)
-            re_try = re_try + 1
+            re_try += 1
             if version != 0:
-                init_try = False
-        if version != 0x12:
-            raise Exception('Invalid version.')
+                break
 
         if __DEBUG__:
             print("SX version: {}".format(version))
+
+        if version != 0x12:
+            raise Exception('Invalid version.')
 
         # put in LoRa and sleep mode
         self.sleep()
@@ -143,8 +142,8 @@ class SX127x:
         self.set_coding_rate(self._parameters['coding_rate'])
         self.set_preamble_length(self._parameters['preamble_length'])
         self.set_sync_word(self._parameters['sync_word'])
-        self.enable_CRC(self._parameters['enable_CRC'])
-        self.invert_IQ(self._parameters["invert_IQ"])
+        self.enable_crc(self._parameters['enable_CRC'])
+        self.invert_iq(self._parameters["invert_IQ"])
 
         # set LowDataRateOptimize flag if symbol time > 16ms (default disable on reset)
         # self.write_register(REG_MODEM_CONFIG_3, self.read_register(REG_MODEM_CONFIG_3) & 0xF7)  # default disable on reset
@@ -167,7 +166,7 @@ class SX127x:
         self.standby()
         self.implicit_header_mode(implicit_header_mode)
 
-        # reset FIFO address and paload length
+        # reset FIFO address and payload length
         self.write_register(REG_FIFO_ADDR_PTR, FifoTxBaseAddr)
         self.write_register(REG_PAYLOAD_LENGTH, 0)
 
@@ -182,40 +181,34 @@ class SX127x:
         # clear IRQ's
         self.write_register(REG_IRQ_FLAGS, IRQ_TX_DONE_MASK)
 
-        self.collect_garbage()
-
     def write(self, buffer):
-        currentLength = self.read_register(REG_PAYLOAD_LENGTH)
+        current_length = self.read_register(REG_PAYLOAD_LENGTH)
         size = len(buffer)
 
         # check size
-        size = min(size, (MAX_PKT_LENGTH - FifoTxBaseAddr - currentLength))
+        size = min(size, (MAX_PKT_LENGTH - FifoTxBaseAddr - current_length))
 
         # write data
         for i in range(size):
             self.write_register(REG_FIFO, buffer[i])
 
         # update length
-        self.write_register(REG_PAYLOAD_LENGTH, currentLength + size)
+        self.write_register(REG_PAYLOAD_LENGTH, current_length + size)
         return size
 
     def set_lock(self, lock = False):
         self._lock = lock
 
-    def println(self, msg, implicit_header = False):
+    def send(self, message: bytes, implicit_header = False):
         self.set_lock(True)  # wait until RX_Done, lock and begin writing.
 
         self.begin_packet(implicit_header)
-
-        if isinstance(msg, str):
-            message = msg.encode()
             
         self.write(message)
 
         self.end_packet()
 
         self.set_lock(False) # unlock when done writing
-        self.collect_garbage()
 
     def get_irq_flags(self):
         irq_flags = self.read_register(REG_IRQ_FLAGS)
@@ -224,7 +217,7 @@ class SX127x:
 
     def packet_rssi(self):
         rssi = self.read_register(REG_PKT_RSSI_VALUE)
-        return (rssi - (164 if self._frequency < 868E6 else 157))
+        return rssi - (164 if self._frequency < 868E6 else 157)
 
     def packet_snr(self):
         snr = self.read_register(REG_PKT_SNR_VALUE)
@@ -236,10 +229,11 @@ class SX127x:
     def sleep(self):
         self.write_register(REG_OP_MODE, MODE_LONG_RANGE_MODE | MODE_SLEEP)
 
-    def set_tx_power(self, level, outputPin = PA_OUTPUT_PA_BOOST_PIN):
+    def set_tx_power(self, level, output_pin = PA_OUTPUT_PA_BOOST_PIN):
+        # todo: add option to use non-boost pin
         self._tx_power_level = level
 
-        if (outputPin == PA_OUTPUT_RFO_PIN):
+        if output_pin == PA_OUTPUT_RFO_PIN:
             # RFO
             level = min(max(level, 0), 14)
             self.write_register(REG_PA_CONFIG, 0x70 | level)
@@ -297,14 +291,14 @@ class SX127x:
         self.write_register(REG_PREAMBLE_MSB,  (length >> 8) & 0xff)
         self.write_register(REG_PREAMBLE_LSB,  (length >> 0) & 0xff)
 
-    def enable_CRC(self, enable_CRC = False):
+    def enable_crc(self, enable_crc = False):
         modem_config_2 = self.read_register(REG_MODEM_CONFIG_2)
-        config = modem_config_2 | 0x04 if enable_CRC else modem_config_2 & 0xfb
+        config = modem_config_2 | 0x04 if enable_crc else modem_config_2 & 0xfb
         self.write_register(REG_MODEM_CONFIG_2, config)
 
-    def invert_IQ(self, invert_IQ):
-        self._parameters["invertIQ"] = invert_IQ
-        if invert_IQ:
+    def invert_iq(self, invert_iq):
+        self._parameters["invertIQ"] = invert_iq
+        if invert_iq:
             self.write_register(
                 REG_INVERTIQ,
                 (
@@ -343,7 +337,7 @@ class SX127x:
                 self.set_frequency(parameters[key])
                 continue
             if key == "invert_IQ":
-                self.invert_IQ(parameters[key])
+                self.invert_iq(parameters[key])
                 continue
             if key == "tx_power_level":
                 self.set_tx_power(parameters[key])
@@ -392,7 +386,7 @@ class SX127x:
         self.set_lock(True)              # lock until TX_Done
         irq_flags = self.get_irq_flags()
 
-        if (irq_flags == IRQ_RX_DONE_MASK):  # RX_DONE only, irq_flags should be 0x40
+        if irq_flags == IRQ_RX_DONE_MASK:  # RX_DONE only, irq_flags should be 0x40
             # automatically standby when RX_DONE
             if self._on_receive:
                 payload = self.read_payload()
@@ -410,7 +404,6 @@ class SX127x:
             )
 
         self.set_lock(False)             # unlock in any case.
-        self.collect_garbage()
         return True
 
     def received_packet(self, size = 0):
@@ -424,7 +417,7 @@ class SX127x:
            # (irq_flags & IRQ_RX_TIME_OUT_MASK == 0) and \
            # (irq_flags & IRQ_PAYLOAD_CRC_ERROR_MASK == 0):
 
-        if (irq_flags == IRQ_RX_DONE_MASK):  
+        if irq_flags == IRQ_RX_DONE_MASK:
             # RX_DONE only, irq_flags should be 0x40
             # automatically standby when RX_DONE
             return True
@@ -438,7 +431,7 @@ class SX127x:
                 MODE_LONG_RANGE_MODE | MODE_RX_SINGLE
             )
 
-    def read_payload(self):
+    def read_payload(self) -> bytes:
         # set FIFO address to current RX address
         # fifo_rx_current_addr = self.read_register(REG_FIFO_RX_CURRENT_ADDR)
         self.write_register(
@@ -456,10 +449,9 @@ class SX127x:
         for i in range(packet_length):
             payload.append(self.read_register(REG_FIFO))
 
-        self.collect_garbage()
         return bytes(payload)
 
-    def read_register(self, address, byteorder = 'big', signed = False):
+    def read_register(self, address, byteorder = 'big'):
         response = self.transfer(address & 0x7f)
         return int.from_bytes(response, byteorder)
 
@@ -487,7 +479,7 @@ class SX127x:
                 self._led_status.value(False)
                 sleep(off_seconds)
 
-    def collect_garbage(self):
-        gc.collect()
-        if __DEBUG__:
-            print('[Memory - free: {}   allocated: {}]'.format(gc.mem_free(), gc.mem_alloc()))
+    def try_receive(self) -> Optional[bytes]:
+        if self.received_packet():
+            return self.read_payload()
+        return None
