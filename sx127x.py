@@ -2,7 +2,7 @@ from time import sleep
 from typing import Optional
 
 from machine import SPI, Pin
-import gc
+
 
 PA_OUTPUT_RFO_PIN = 0
 PA_OUTPUT_PA_BOOST_PIN = 1
@@ -76,6 +76,7 @@ IRQ_RX_TIME_OUT_MASK = 0x80
 MAX_PKT_LENGTH = 255
 
 __DEBUG__ = True
+
 
 class SX127x:
 
@@ -162,7 +163,7 @@ class SX127x:
 
         self.standby()
 
-    def begin_packet(self, implicit_header_mode = False):
+    def begin_packet(self, implicit_header_mode=False):
         self.standby()
         self.implicit_header_mode(implicit_header_mode)
 
@@ -196,10 +197,10 @@ class SX127x:
         self.write_register(REG_PAYLOAD_LENGTH, current_length + size)
         return size
 
-    def set_lock(self, lock = False):
+    def set_lock(self, lock=False):
         self._lock = lock
 
-    def send(self, message: bytes, implicit_header = False):
+    def send(self, message: bytes, implicit_header=False):
         self.set_lock(True)  # wait until RX_Done, lock and begin writing.
 
         self.begin_packet(implicit_header)
@@ -208,7 +209,7 @@ class SX127x:
 
         self.end_packet()
 
-        self.set_lock(False) # unlock when done writing
+        self.set_lock(False)  # unlock when done writing
 
     def get_irq_flags(self):
         irq_flags = self.read_register(REG_IRQ_FLAGS)
@@ -229,7 +230,7 @@ class SX127x:
     def sleep(self):
         self.write_register(REG_OP_MODE, MODE_LONG_RANGE_MODE | MODE_SLEEP)
 
-    def set_tx_power(self, level, output_pin = PA_OUTPUT_PA_BOOST_PIN):
+    def set_tx_power(self, level, output_pin=PA_OUTPUT_PA_BOOST_PIN):
         # todo: add option to use non-boost pin
         self._tx_power_level = level
 
@@ -291,7 +292,7 @@ class SX127x:
         self.write_register(REG_PREAMBLE_MSB,  (length >> 8) & 0xff)
         self.write_register(REG_PREAMBLE_LSB,  (length >> 0) & 0xff)
 
-    def enable_crc(self, enable_crc = False):
+    def enable_crc(self, enable_crc=False):
         modem_config_2 = self.read_register(REG_MODEM_CONFIG_2)
         config = modem_config_2 | 0x04 if enable_crc else modem_config_2 & 0xfb
         self.write_register(REG_MODEM_CONFIG_2, config)
@@ -359,7 +360,7 @@ class SX127x:
                     if implicit_header_mode else modem_config_1 & 0xfe)
             self.write_register(REG_MODEM_CONFIG_1, config)
 
-    def receive(self, size = 0):
+    def receive(self, size=0):
         self.implicit_header_mode(size > 0)
         if size > 0: 
             self.write_register(REG_PAYLOAD_LENGTH, size & 0xff)
@@ -451,15 +452,14 @@ class SX127x:
 
         return bytes(payload)
 
-    def read_register(self, address, byteorder = 'big'):
+    def read_register(self, address, byteorder='big'):
         response = self.transfer(address & 0x7f)
         return int.from_bytes(response, byteorder)
 
     def write_register(self, address, value):
         self.transfer(address | 0x80, value)
 
-
-    def transfer(self, address, value = 0x00):
+    def transfer(self, address, value=0x00):
         response = bytearray(1)
 
         self._pin_ss.value(0)
@@ -471,7 +471,7 @@ class SX127x:
 
         return response
 
-    def blink_led(self, times = 1, on_seconds = 0.1, off_seconds = 0.1):
+    def blink_led(self, times=1, on_seconds=0.1, off_seconds=0.1):
         for i in range(times):
             if self._led_status:
                 self._led_status.value(True)
