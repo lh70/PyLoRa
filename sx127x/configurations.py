@@ -13,9 +13,9 @@
 # limitations under the License.
 #
 
-"""
-# ES32 TTGO v1.0 
-device_config = {
+
+# ESP32 TTGO v1.0
+DEVICE_CONFIG_ESP32_TTGO = {
     'miso': 19,
     'mosi': 27,
     'ss': 18,
@@ -26,7 +26,7 @@ device_config = {
 }
 
 # M5Stack ATOM Matrix
-device_config = {
+DEVICE_CONFIG_M5STACK_ATOM_MATRIX = {
     'miso': 23,
     'mosi': 19,
     'ss': 22,
@@ -35,10 +35,9 @@ device_config = {
     'reset': 21,
     'led': 12,
 }
-"""
 
-#M5Stack & LoRA868 Module
-device_config = {
+# M5Stack & LoRa868 Module
+DEVICE_CONFIG_M5STACK_LORA868 = {
     'miso': 19,
     'mosi': 23,
     'ss': 5,
@@ -48,12 +47,8 @@ device_config = {
     'led': 12,
 }
 
-app_config = {
-    'loop': 200,
-    'sleep': 100,
-}
 
-lora_parameters = {
+LORA_PARAMETERS_DEFAULT = {
     'frequency': 868E6, 
     'tx_power_level': 2, 
     'signal_bandwidth': 125E3,    
@@ -75,7 +70,7 @@ https://www.airspayce.com/mikem/arduino/RadioHead/classRH__RF95.html
 todo: check if message format (4 octets HEADER: (TO, FROM, ID, FLAGS)) is non standard
 """
 # default medium range configuration
-rh_rf95_bw125cr45sf128 = {
+LORA_PARAMETERS_RH_RF95_bw125cr45sf128 = {
     'frequency': 868.1E6,  # 868.1E6 or 434E6
     'tx_power_level': 2,
     'signal_bandwidth': 125E3,
@@ -88,7 +83,7 @@ rh_rf95_bw125cr45sf128 = {
     'invert_IQ': False,
 }
 # fast + short range configuration
-rh_rf95_bw500cr45sf128 = {
+LORA_PARAMETERS_RH_RF95_bw500cr45sf128 = {
     'frequency': 868.1E6,  # 868.1E6 or 434E6
     'tx_power_level': 2,
     'signal_bandwidth': 500E3,
@@ -101,7 +96,7 @@ rh_rf95_bw500cr45sf128 = {
     'invert_IQ': False,
 }
 # slow + long range configuration
-rh_rf95_bw31_25cr48sf512 = {
+LORA_PARAMETERS_RH_RF95_bw31_25cr48sf512 = {
     'frequency': 868.1E6,  # 868.1E6 or 434E6
     'tx_power_level': 2,
     'signal_bandwidth': 31.25E3,
@@ -114,7 +109,7 @@ rh_rf95_bw31_25cr48sf512 = {
     'invert_IQ': False,
 }
 # slow + long range configuration
-rh_rf95_bw125cr48sf4096 = {
+LORA_PARAMETERS_RH_RF95_bw125cr48sf4096 = {
     'frequency': 868.1E6,  # 868.1E6 or 434E6
     'tx_power_level': 2,
     'signal_bandwidth': 125E3,
@@ -127,7 +122,7 @@ rh_rf95_bw125cr48sf4096 = {
     'invert_IQ': False,
 }
 # slow + long range configuration
-rh_rf95_bw125cr45sf2048 = {
+LORA_PARAMETERS_RH_RF95_bw125cr45sf2048 = {
     'frequency': 868.1E6,  # 868.1E6 or 434E6
     'tx_power_level': 2,
     'signal_bandwidth': 125E3,

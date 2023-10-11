@@ -1,7 +1,7 @@
 from time import sleep
 from typing import Optional
 
-from machine import SPI, Pin
+from machine import Pin
 
 
 PA_OUTPUT_RFO_PIN = 0
